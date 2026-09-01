@@ -1660,6 +1660,86 @@ body{
 }
 @media print{.onlineOnlyLock{display:none!important}}
 
+
+.sellerConfirmBtn{
+  background:#f59e0b!important;
+  color:#111827!important;
+  height:30px!important;
+  border-radius:7px!important;
+  font-size:11px!important;
+  line-height:1.05!important;
+  padding:0 8px!important;
+  white-space:normal!important;
+}
+.seller-confirm-ok{
+  display:inline-block!important;
+  margin-top:6px!important;
+  padding:3px 7px!important;
+  border-radius:999px!important;
+  background:#dcfce7!important;
+  border:1px solid #22c55e!important;
+  color:#166534!important;
+  font-weight:900!important;
+  font-size:11px!important;
+}
+
+
+#confirmSellerAddressBtn{
+  display:block!important;
+  width:100%!important;
+  margin-top:4px!important;
+}
+
+
+.onlineUsersBox{
+  margin:12px;
+  padding:10px 12px;
+  border-radius:12px;
+  background:#ecfdf5;
+  border:1px solid #22c55e;
+  color:#14532d;
+  font-size:13px;
+  font-weight:900;
+}
+.onlineUsersBox small{
+  display:block;
+  margin-top:4px;
+  color:#166534;
+  font-weight:700;
+  font-size:11px;
+  line-height:1.35;
+}
+
+
+.bulkSellerBox{
+  margin-top:12px;
+  padding:12px;
+  border:2px solid #7c3aed;
+  border-radius:12px;
+  background:#f5f3ff;
+}
+.bulkSellerBox .bulkSellerTitle{
+  font-weight:900;
+  color:#4c1d95;
+  margin-bottom:7px;
+}
+.bulkSellerBox button{
+  background:#7c3aed !important;
+  height:38px !important;
+  font-size:12px !important;
+  width:100% !important;
+}
+.bulkSellerBox .bulkSellerBtn2{
+  background:#111827 !important;
+}
+.bulkSellerBox small{
+  display:block;
+  color:#4c1d95;
+  margin-top:6px;
+  line-height:1.35;
+  font-size:11px;
+}
+
 </style>
 
 <style>
@@ -1716,6 +1796,12 @@ body{
         <p></p>
       </div>
     </div>
+    
+    <div class="onlineUsersBox">
+      ONLINE NOW: <span id="onlineUsersCount">...</span>
+      <small id="onlineUsersList">Checking online users...</small>
+    </div>
+
     <div class="edit-hint-main"><b>Direct edit:</b> Click the text directly on the waybill to edit the address, seller, area code, note, quantity, weight, order ID, and service. Upload and barcode/QR controls are still on the side.</div>
 
     <details class="panel" open>
@@ -1726,7 +1812,7 @@ body{
           <div class="field full">
             <label>Upload PDF / multiple waybills per PDF</label>
             <input id="bulkPdfUpload" type="file" accept="application/pdf,.pdf">
-          </div>
+          </div>  
           <div class="hint">
             After upload, the address will auto-fill when confidence is high. If the score is 99% or below, it will show red REVIEW and must be confirmed before bulk download. You can also stop the download while it is running. The large Tracking No. and ORIGINAL QR code will be taken as image crops from the original PDF. No generated QR will be created.
             Check the extracted data first, then click <b>APPLY SELECTED</b> or <b>DOWNLOAD ALL</b>.
@@ -1741,6 +1827,19 @@ body{
             <button type="button" onclick="selectPrevPdfWaybill()">PREV</button>
             <button type="button" onclick="selectNextPdfWaybill()">NEXT</button>
           </div>
+          
+        <div class="bulkSellerBox">
+          <div class="bulkSellerTitle">Seller Address for All Waybills</div>
+          <div class="grid2">
+            <button type="button" onclick="applyCurrentSellerToAllWaybills()">APPLY CURRENT SELLER TO ALL</button>
+            <button type="button" class="bulkSellerBtn2" onclick="editSellerThenApplyToAllWaybills()">EDIT SELLER FOR ALL</button>
+          </div>
+          <small>
+            Edit the seller once on the preview, then click APPLY CURRENT SELLER TO ALL.
+            This will update seller name, address, city, barangay/area, province, region, and ZIP for every extracted waybill.
+          </small>
+        </div>
+
           <div id="bulkPdfPreview"></div>
           <textarea id="bulkPdfRawText" class="pdf-raw-text" readonly placeholder="Raw text of the selected PDF page..."></textarea>
         </div>
@@ -1975,8 +2074,7 @@ body{
 
       <div class="footer">
         <div class="shop">
-          <!--Shopee-->
-        <img src="SHOPEE.png" class="shopee-img"></div>
+          <img src="SHOPEE.png" class="shopee-img"></div>
         <div class="attempt delivery"><div class="attemptTitle">Delivery Attempt</div><div class="nums"><div>1</div><div>2</div><div>3</div></div></div>
         <div class="attempt"><div class="attemptTitle">Return Attempt</div><div class="nums"><div>1</div><div>2</div><div>3</div></div></div>
       </div>
@@ -3422,10 +3520,25 @@ function splitLocationLine(line){
   for(const p of PH_PROVINCES){
     const re = new RegExp("(^|\\s)" + escapeRegExp(p) + "$", "i");
     if(re.test(line)){
+      const beforeProvince = cleanPdfText(line.replace(new RegExp(escapeRegExp(p) + "$", "i"), ""));
+      const bareBarangayPrefix = /^(?:Barangay|Brgy\.?|Bgy\.?)$/i.test(beforeProvince);
+      const loneRizalBarangay = !beforeProvince && /^Rizal$/i.test(p);
+      if(bareBarangayPrefix || loneRizalBarangay) continue;
+
       province = p;
-      line = cleanPdfText(line.replace(new RegExp(escapeRegExp(p) + "$", "i"), ""));
+      line = beforeProvince;
       break;
     }
+  }
+
+  const explicitBarangayOnly = line.match(/^(?:Barangay|Brgy\.?|Bgy\.?)\s+(.+)$/i);
+  if(explicitBarangayOnly && !/\b(?:City|Municipality)\b/i.test(explicitBarangayOnly[1])){
+    return {
+      area: cleanBarangayOnly(line) || cleanPdfText(explicitBarangayOnly[1]),
+      city: "",
+      province: province || "",
+      region: "Philippines"
+    };
   }
 
   let city = "";
@@ -4026,12 +4139,16 @@ function confirmAddress(index){
   const zip = prompt("ZIP code:", w.buyerZip || "");
   if(zip === null) return;
 
+  const remarks = prompt("Buyer Remarks:", w.remarks || "");
+  if(remarks === null) return;
+
   w.buyerLine1 = cleanPdfText(buyerLine);
   w.buyerArea = cleanPdfText(area);
   w.buyerCity = cleanPdfText(city);
   w.buyerProvince = cleanPdfText(province);
   w.buyerRegion = w.buyerRegion || "Philippines";
   w.buyerZip = cleanPdfText(zip);
+  w.remarks = cleanPdfText(remarks);
   w.addressConfirmed = true;
   updateAddressStatus(w);
 
@@ -4826,5 +4943,296 @@ async function downloadAllExtractedWaybills(){
 })();
 </script>
 
-</body>
-</html>
+
+<script>
+(function(){
+  function cleanSellerAuto(s){
+    return String(s || "").replace(/\s+/g, " ").trim();
+  }
+
+  function extractLastZip(s){
+    const m = String(s || "").match(/\b(\d{4})\b(?!.*\b\d{4}\b)/);
+    return m ? m[1] : "";
+  }
+
+  window.applySellerCityAddressZipFix = function(){
+    const sellerNameEl = document.getElementById("p_sellerName");
+    const sellerLineEl = document.getElementById("p_sellerLine1");
+    const cityEl = document.getElementById("p_sellerCity");
+    const areaEl = document.getElementById("p_sellerArea");
+    const provinceEl = document.getElementById("p_sellerProvince");
+    const regionEl = document.getElementById("p_sellerRegion");
+    const zipEl = document.getElementById("p_sellerZip");
+
+    const text = cleanSellerAuto([
+      sellerNameEl?.textContent || "",
+      sellerLineEl?.textContent || "",
+      cityEl?.textContent || "",
+      areaEl?.textContent || "",
+      provinceEl?.textContent || "",
+      regionEl?.textContent || "",
+      zipEl?.textContent || ""
+    ].join(" "));
+
+    const zip = extractLastZip(text);
+    if(zip && zipEl) zipEl.textContent = zip;
+
+    if(/\bBaclaran\b/i.test(text)){
+      if(cityEl) cityEl.textContent = "Paranaque City";
+      if(areaEl) areaEl.textContent = "Baclaran";
+      if(provinceEl) provinceEl.textContent = "Metro Manila";
+      if(regionEl) regionEl.textContent = "Philippines";
+      return;
+    }
+
+    if(/\bTondo\b/i.test(text)){
+      if(cityEl) cityEl.textContent = "Tondo";
+      const brgy = text.match(/\b(?:Barangay|Brgy\.?|Bgy\.?)\s*(\d+)\b/i);
+      if(brgy && areaEl) areaEl.textContent = "Barangay " + brgy[1];
+      if(provinceEl) provinceEl.textContent = "Metro Manila";
+      if(regionEl) regionEl.textContent = "Philippines";
+      return;
+    }
+
+    if(/\bParanaque\b|\bParañaque\b/i.test(text)){
+      if(cityEl) cityEl.textContent = "Paranaque City";
+      if(provinceEl) provinceEl.textContent = "Metro Manila";
+      if(regionEl) regionEl.textContent = "Philippines";
+    }
+  };
+
+  function runSellerCityAddressZipFixSoon(){
+    setTimeout(window.applySellerCityAddressZipFix, 150);
+    setTimeout(window.applySellerCityAddressZipFix, 500);
+  }
+
+  const oldPSGCSeller = window.applyPSGCToSeller;
+  if(typeof oldPSGCSeller === "function"){
+    window.applyPSGCToSeller = function(){
+      const r = oldPSGCSeller.apply(this, arguments);
+      runSellerCityAddressZipFixSoon();
+      return r;
+    };
+  }
+
+  const oldApplyWaybillData = window.applyWaybillData;
+  if(typeof oldApplyWaybillData === "function"){
+    window.applyWaybillData = function(){
+      const r = oldApplyWaybillData.apply(this, arguments);
+      runSellerCityAddressZipFixSoon();
+      return r;
+    };
+  }
+
+  const oldApplySelectedPdfWaybill = window.applySelectedPdfWaybill;
+  if(typeof oldApplySelectedPdfWaybill === "function"){
+    window.applySelectedPdfWaybill = function(){
+      const r = oldApplySelectedPdfWaybill.apply(this, arguments);
+      runSellerCityAddressZipFixSoon();
+      return r;
+    };
+  }
+
+  document.addEventListener("input", function(e){
+    if(e.target && /^p_seller/.test(e.target.id || "")){
+      runSellerCityAddressZipFixSoon();
+    }
+  });
+})();
+</script>
+
+
+<script>
+(function(){
+  function cleanAddressAreaText(value){
+    let s = String(value || "").replace(/\s+/g, " ").trim();
+
+    // Remove house/street/noise that should not be inside Barangay/Area field.
+    // TINANGGAL ANG "Rizal" SA MGA FILTER LIST SA IBABA PARA HINDI NA BURAHIN.
+    s = s
+      .replace(/\([^)]*\)/g, " ")
+      .replace(/\b(?:Near|Beside|Behind|Back of|In front of|Front of|Landmark)\b.*$/i, " ")
+      .replace(/\b(?:No\.?|#)\s*\d+[A-Za-z]?\b[,\s-]*/gi, " ")
+      .replace(/\b\d+\s+(?:T\.?\s*)?(?:Passion|Pasion|Main|National|Mabini|Quezon|Bonifacio|Del Pilar|Purok|Sitio)\s+(?:Street|St\.?|Road|Rd\.?|Avenue|Ave\.?)\b.*$/i, " ")
+      .replace(/\b(?:Street|St\.?|Road|Rd\.?|Avenue|Ave\.?|Highway|Hwy\.?|Drive|Dr\.?|Lane|Ln\.?)\b.*$/i, " ")
+      .replace(/\b(?:Philippines|PH)\b/gi, " ")
+      .replace(/\b(?:Ilocos Norte|Metro Manila|NCR|Bulacan|Pampanga|Cavite|Laguna|Pangasinan)\b/gi, " ")
+      .replace(/\b(?:Laoag City|Paranaque City|Manila|Tondo)\b/gi, " ")
+      .replace(/^[,\s.-]+|[,\s.-]+$/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    // If it still contains "Barangay 19" or "Bgy. No. 19", keep only official barangay phrase.
+    const brgyNo = String(value || "").match(/\b(?:Barangay|Brgy\.?|Bgy\.?)\s*(?:No\.?\s*)?(\d+[A-Za-z]?)\b/i);
+    if(brgyNo) return "Barangay " + brgyNo[1];
+
+    return s;
+  }
+
+  function extractBuyerBarangayOnlyFromText(text){
+    text = String(text || "").replace(/\s+/g, " ").trim();
+
+    // Prefer explicit Barangay / Bgy / Brgy number.
+    const bgyNo = text.match(/\b(?:Barangay|Brgy\.?|Bgy\.?)\s*(?:No\.?\s*)?(\d+[A-Za-z]?)\b/i);
+    if(bgyNo) return "Barangay " + bgyNo[1];
+
+    const rizalNamed = text.match(/\b(?:Barangay|Brgy\.?|Bgy\.?)\s*(Rizal)\b/i);
+    if(rizalNamed) return "Rizal";
+
+    // Prefer named barangay after "Barangay".
+    const named = text.match(/\b(?:Barangay|Brgy\.?|Bgy\.?)\s*([A-Za-z0-9Ññ .-]+?)(?=\s+(?:Laoag City|City|Municipality|Province|Ilocos Norte|Philippines|Near|\(|\d{4})\b|,|$)/i);
+    if(named) return cleanAddressAreaText(named[1]);
+
+    return "";
+  }
+
+  function isMeaningfulBarangayArea(value){
+    const s = cleanAddressAreaText(value);
+    return !!s && !/^(?:Barangay|Brgy\.?|Bgy\.?)$/i.test(s);
+  }
+
+  window.cleanBuyerAreaField = function(){
+    const lineEl = document.getElementById("p_buyerLine1");
+    const cityEl = document.getElementById("p_buyerCity");
+    const areaEl = document.getElementById("p_buyerArea");
+    const provinceEl = document.getElementById("p_buyerProvince");
+    const regionEl = document.getElementById("p_buyerRegion");
+
+    const fullText = [
+      lineEl?.textContent || "",
+      cityEl?.textContent || "",
+      areaEl?.textContent || "",
+      provinceEl?.textContent || "",
+      regionEl?.textContent || ""
+    ].join(" ");
+
+    const santaMarcela = /\bSanta\s+Marcela\b/i.test(fullText) ? "Santa Marcela" : "";
+    const currentArea = areaEl ? cleanAddressAreaText(areaEl.textContent) : "";
+    const exactBarangay =
+      santaMarcela ||
+      extractBuyerBarangayOnlyFromText(lineEl?.textContent || "") ||
+      (!isMeaningfulBarangayArea(currentArea) ? extractBuyerBarangayOnlyFromText(fullText) : "");
+
+    if(areaEl){
+      areaEl.textContent = exactBarangay || currentArea;
+    }
+
+    if(/\bLaoag City\b/i.test(fullText) && cityEl) cityEl.textContent = "Laoag City";
+    if(/\bIlocos Norte\b/i.test(fullText) && provinceEl) provinceEl.textContent = "Ilocos Norte";
+    if(/\bIlocos Norte\b/i.test(fullText) && regionEl) regionEl.textContent = "Philippines";
+  };
+
+  function runBuyerAreaCleanSoon(){
+    setTimeout(window.cleanBuyerAreaField, 120);
+    setTimeout(window.cleanBuyerAreaField, 450);
+  }
+
+  const oldApplyPSGCToBuyer = window.applyPSGCToBuyer;
+  if(typeof oldApplyPSGCToBuyer === "function"){
+    window.applyPSGCToBuyer = function(){
+      const r = oldApplyPSGCToBuyer.apply(this, arguments);
+      runBuyerAreaCleanSoon();
+      return r;
+    };
+  }
+
+  const oldApplyWaybillData = window.applyWaybillData;
+  if(typeof oldApplyWaybillData === "function"){
+    window.applyWaybillData = function(){
+      const r = oldApplyWaybillData.apply(this, arguments);
+      runBuyerAreaCleanSoon();
+      return r;
+    };
+  }
+
+  const oldApplySelectedPdfWaybill = window.applySelectedPdfWaybill;
+  if(typeof oldApplySelectedPdfWaybill === "function"){
+    window.applySelectedPdfWaybill = function(){
+      const r = oldApplySelectedPdfWaybill.apply(this, arguments);
+      runBuyerAreaCleanSoon();
+      return r;
+    };
+  }
+
+  document.addEventListener("input", function(e){
+    const id = e.target && e.target.id ? e.target.id : "";
+    if(id === "p_buyerLine1" || id === "p_buyerCity" || id === "p_buyerProvince" || id === "p_buyerRegion"){
+      runBuyerAreaCleanSoon();
+    }
+  });
+})();
+</script>
+
+
+<script>
+(function(){
+  function cleanSantaMarcelaText(s){
+    return String(s || "")
+      .replace(/\([^)]*\)/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/^[,\s.-]+|[,\s.-]+$/g, "")
+      .trim();
+  }
+
+  function extractSantaMarcelaArea(text){
+    text = String(text || "");
+    const m = text.match(/\bSanta\s+Marcela\b/i);
+    if(m) return "Santa Marcela";
+    return "";
+  }
+
+  window.fixBuyerSantaMarcelaBarangay = function(){
+    const lineEl = document.getElementById("p_buyerLine1");
+    const cityEl = document.getElementById("p_buyerCity");
+    const areaEl = document.getElementById("p_buyerArea");
+    const provinceEl = document.getElementById("p_buyerProvince");
+    const regionEl = document.getElementById("p_buyerRegion");
+
+    const fullText = cleanSantaMarcelaText([
+      lineEl?.textContent || "",
+      cityEl?.textContent || "",
+      areaEl?.textContent || "",
+      provinceEl?.textContent || "",
+      regionEl?.textContent || ""
+    ].join(" "));
+
+    const santa = extractSantaMarcelaArea(fullText);
+    if(santa && areaEl) areaEl.textContent = santa;
+
+    if(/\bLaoag City\b/i.test(fullText) && cityEl) cityEl.textContent = "Laoag City";
+    if(/\bIlocos Norte\b/i.test(fullText) && provinceEl) provinceEl.textContent = "Ilocos Norte";
+    if(/\bIlocos Norte\b/i.test(fullText) && regionEl) regionEl.textContent = "Philippines";
+  };
+
+  function runSantaMarcelaFixSoon(){
+    setTimeout(window.fixBuyerSantaMarcelaBarangay, 130);
+    setTimeout(window.fixBuyerSantaMarcelaBarangay, 480);
+  }
+
+  const oldCleanBuyerAreaField = window.cleanBuyerAreaField;
+  if(typeof oldCleanBuyerAreaField === "function"){
+    window.cleanBuyerAreaField = function(){
+      const r = oldCleanBuyerAreaField.apply(this, arguments);
+      runSantaMarcelaFixSoon();
+      return r;
+    };
+  }
+
+  const oldApplyPSGCToBuyer = window.applyPSGCToBuyer;
+  if(typeof oldApplyPSGCToBuyer === "function"){
+    window.applyPSGCToBuyer = function(){
+      const r = oldApplyPSGCToBuyer.apply(this, arguments);
+      runSantaMarcelaFixSoon();
+      return r;
+    };
+  }
+
+  const oldApplyWaybillData = window.applyWaybillData;
+  if(typeof oldApplyWaybillData === "function"){
+    window.applyWaybillData = function(){
+      const r = oldApplyWaybillData.apply(this, arguments);
+      runSantaMarcelaFixSoon();
+      return r;
+    };
+  }
+});
