@@ -4155,7 +4155,7 @@ function confirmAddress(index){
   setBulkPdfStatus("Address confirmed for page " + w.page + ".");
 
 }
-
+//-nigga-//
 function editRemarksForBuyerAll() {
   const remarks = prompt(
     "Buyer Remarks for ALL waybills:",
@@ -4188,29 +4188,6 @@ function confirmAddress(index){
 
 }
 
-
-// DITO MO ILAGAY ANG BAGONG FUNCTION
-function editRemarksForBuyerAll() {
-
-  const remarks = prompt(
-    "Enter Buyer Remarks for ALL waybills:",
-    ""
-  );
-
-  if (remarks === null) return;
-
-  const cleanedRemarks = cleanPdfText(remarks);
-
-  extractedPdfWaybills.forEach(w => {
-    w.remarks = cleanedRemarks;
-  });
-
-  renderPdfPreviewTable();
-
-  setBulkPdfStatus(
-    "Buyer remarks updated for all waybills."
-  );
-}
 
 function hasUnconfirmedAddress(){
   return extractedPdfWaybills.some(w => {
