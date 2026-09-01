@@ -1812,7 +1812,7 @@ body{
           <div class="field full">
             <label>Upload PDF / multiple waybills per PDF</label>
             <input id="bulkPdfUpload" type="file" accept="application/pdf,.pdf">
-          </div>  
+          </div>
           <div class="hint">
             After upload, the address will auto-fill when confidence is high. If the score is 99% or below, it will show red REVIEW and must be confirmed before bulk download. You can also stop the download while it is running. The large Tracking No. and ORIGINAL QR code will be taken as image crops from the original PDF. No generated QR will be created.
             Check the extracted data first, then click <b>APPLY SELECTED</b> or <b>DOWNLOAD ALL</b>.
@@ -1833,6 +1833,7 @@ body{
           <div class="grid2">
             <button type="button" onclick="applyCurrentSellerToAllWaybills()">APPLY CURRENT SELLER TO ALL</button>
             <button type="button" class="bulkSellerBtn2" onclick="editSellerThenApplyToAllWaybills()">EDIT SELLER FOR ALL</button>
+            <button type="button" class="importSmallBtn" onclick="editRemarksForBuyerAll();">EDIT REMARKS FOR ALL</button>
           </div>
           <small>
             Edit the seller once on the preview, then click APPLY CURRENT SELLER TO ALL.
@@ -4139,16 +4140,12 @@ function confirmAddress(index){
   const zip = prompt("ZIP code:", w.buyerZip || "");
   if(zip === null) return;
 
-  const remarks = prompt("Buyer Remarks:", w.remarks || "");
-  if(remarks === null) return;
-
   w.buyerLine1 = cleanPdfText(buyerLine);
   w.buyerArea = cleanPdfText(area);
   w.buyerCity = cleanPdfText(city);
   w.buyerProvince = cleanPdfText(province);
   w.buyerRegion = w.buyerRegion || "Philippines";
   w.buyerZip = cleanPdfText(zip);
-  w.remarks = cleanPdfText(remarks);
   w.addressConfirmed = true;
   updateAddressStatus(w);
 
@@ -4157,6 +4154,43 @@ function confirmAddress(index){
   applyWaybillData(w);
   if(typeof fitBuyerAddressToBox === "function") setTimeout(fitBuyerAddressToBox, 0);
   setBulkPdfStatus("Address confirmed for page " + w.page + ".");
+
+}
+
+function confirmAddress(index){
+
+  const w = extractedPdfWaybills[index];
+
+  if(!w) return;
+
+  // ... existing code mo ...
+
+  setBulkPdfStatus("Address confirmed for page " + w.page + ".");
+
+}
+
+
+// DITO MO ILAGAY ANG BAGONG FUNCTION
+function editRemarksForBuyerAll() {
+
+  const remarks = prompt(
+    "Enter Buyer Remarks for ALL waybills:",
+    ""
+  );
+
+  if (remarks === null) return;
+
+  const cleanedRemarks = cleanPdfText(remarks);
+
+  extractedPdfWaybills.forEach(w => {
+    w.remarks = cleanedRemarks;
+  });
+
+  renderPdfPreviewTable();
+
+  setBulkPdfStatus(
+    "Buyer remarks updated for all waybills."
+  );
 }
 
 function hasUnconfirmedAddress(){
