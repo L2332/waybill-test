@@ -1831,7 +1831,6 @@ body{
         <div class="bulkSellerBox">
           <div class="bulkSellerTitle">Seller Address for All Waybills</div>
           <div class="grid2">
-            <button type="button" onclick="applyCurrentSellerToAllWaybills()">APPLY CURRENT SELLER TO ALL</button>
             <button type="button" class="bulkSellerBtn2" onclick="editSellerThenApplyToAllWaybills()">EDIT SELLER FOR ALL</button>
             <button type="button" class="importSmallBtn" onclick="editRemarksForBuyerAll();">EDIT REMARKS FOR ALL</button>
           </div>
@@ -4155,6 +4154,26 @@ function confirmAddress(index){
   if(typeof fitBuyerAddressToBox === "function") setTimeout(fitBuyerAddressToBox, 0);
   setBulkPdfStatus("Address confirmed for page " + w.page + ".");
 
+}
+
+function editRemarksForBuyerAll() {
+
+  const remarks = prompt(
+    "Buyer Remarks for ALL waybills:",
+    ""
+  );
+
+  if (remarks === null) return;
+
+  const cleanedRemarks = cleanPdfText(remarks);
+
+  extractedPdfWaybills.forEach(w => {
+    w.remarks = cleanedRemarks;
+  });
+
+  renderPdfPreviewTable();
+
+  setBulkPdfStatus("Buyer remarks updated for all waybills.");
 }
 
 function confirmAddress(index){
