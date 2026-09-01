@@ -4157,7 +4157,6 @@ function confirmAddress(index){
 }
 
 function editRemarksForBuyerAll() {
-
   const remarks = prompt(
     "Buyer Remarks for ALL waybills:",
     ""
@@ -4167,7 +4166,7 @@ function editRemarksForBuyerAll() {
 
   const cleanedRemarks = cleanPdfText(remarks);
 
-  extractedPdfWaybills.forEach(w => {
+  extractedPdfWaybills.forEach(function(w) {
     w.remarks = cleanedRemarks;
   });
 
@@ -4175,6 +4174,7 @@ function editRemarksForBuyerAll() {
 
   setBulkPdfStatus("Buyer remarks updated for all waybills.");
 }
+
 
 function confirmAddress(index){
 
